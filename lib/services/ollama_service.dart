@@ -75,15 +75,19 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
         final data = jsonDecode(response.body);
         String? content = data['message']?['content']?.toString().trim();
         
-        // If content is empty (common in reasoning models still thinking), fallback to thinking field
-        if (content == null || content.isEmpty) {
-          content = data['message']?['thinking']?.toString().trim();
-        }
-        
         if (content != null && content.isNotEmpty) {
-          // If the model output has thinking tags, strip them to deliver a clean user experience
-          content = content.replaceAll(RegExp(r'<thinking>[\s\S]*?</thinking>'), '').trim();
-          print('Ollama Chat Success Content: $content');
+          print('Ollama Raw Content: $content');
+          
+          // Strip XML/HTML-like reasoning tags: <think>...</think> or <thinking>...</thinking>
+          content = content.replaceAll(RegExp(r'<(think|thinking)>[\s\S]*?</\1>', caseSensitive: false), '').trim();
+          
+          // Also strip common markdown/plain-text thinking blocks
+          content = content.replaceAll(RegExp(r'^Thinking Process:?\s*', caseSensitive: false), '').trim();
+          
+          // Clean up any remaining leading/trailing markdown blocks or lines
+          content = content.trim();
+          
+          print('Ollama Chat Success Cleaned Content: $content');
           return content;
         } else {
           print('Ollama Chat Empty Content: ${response.body}');
@@ -104,8 +108,8 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
       systemPrompt: _systemPrompt,
       userMessage: 'Step: "$stepTitle"\nInstruction: "$stepDescription"\n\nProvide one actionable tip.',
       temperature: 0.4,
-      numPredict: 60,
-      timeoutSeconds: 15,
+      numPredict: 150, // Increased to give reasoning models buffer
+      timeoutSeconds: 20,
     );
   }
 
@@ -115,8 +119,8 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
       systemPrompt: _systemPrompt,
       userMessage: 'The user is doing CPR compressions right now. Give ONE short sentence of encouragement. Be calm and supportive.',
       temperature: 0.5,
-      numPredict: 40,
-      timeoutSeconds: 10,
+      numPredict: 100, // Increased to give reasoning models buffer
+      timeoutSeconds: 15,
     );
   }
 
@@ -133,8 +137,8 @@ Answer in under 15 words.
       systemPrompt: _chatSystemPrompt,
       userMessage: userQuestion,
       temperature: 0.1,
-      numPredict: 150, // Increased from 35 to allow reasoning models to finish reasoning before outputting!
-      timeoutSeconds: 30,
+      numPredict: 800, // Increased to 800 so reasoning models complete both thinking and final answer!
+      timeoutSeconds: 90, // Increased to 90s to prevent timing out on slower local runs
     );
   }
 
@@ -144,8 +148,8 @@ Answer in under 15 words.
       systemPrompt: "You are an emergency CPR coach. Answer in under 8 words. Be direct. Do not explain.",
       userMessage: userQuestion,
       temperature: 0.1, 
-      numPredict: 100, // Increased from 20 to allow reasoning models to finish reasoning before outputting! 
-      timeoutSeconds: 20,
+      numPredict: 500, // Increased to 500 to give reasoning models buffer
+      timeoutSeconds: 30,
     );
   }
 }
