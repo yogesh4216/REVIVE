@@ -151,7 +151,11 @@ class _LiveCprScreenState extends State<LiveCprScreen>
     });
 
     _tts.speak('Follow the rhythm. Push hard and fast. Voice assistant is active. Just speak your question anytime.');
-    _startContinuousVoice();
+    Future.delayed(const Duration(milliseconds: 5500), () {
+      if (mounted && _isActive) {
+        _startContinuousVoice();
+      }
+    });
   }
 
   void _stopSession() {

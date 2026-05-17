@@ -12,6 +12,7 @@ class AudioService {
   final AudioPlayer _player = AudioPlayer();
   Timer? _metronomeTimer;
   bool _isPlaying = false;
+  double _volume = 1.0;
 
   /// Duration for one compression cycle (110 BPM target = ~545ms)
   static const int compressionIntervalMs = 545;
@@ -97,6 +98,7 @@ class AudioService {
   Future<void> _playBeep(Uint8List beepData) async {
     try {
       HapticFeedback.lightImpact();
+      await _player.setVolume(_volume);
       await _player.play(BytesSource(beepData));
     } catch (_) {
       // Silently handle playback errors
@@ -113,6 +115,7 @@ class AudioService {
 
   /// Set metronome volume (0.0 to 1.0)
   Future<void> setVolume(double volume) async {
+    _volume = volume;
     await _player.setVolume(volume);
   }
 

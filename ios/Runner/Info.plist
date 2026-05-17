@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Revive needs microphone access to listen for emergency voice commands and hands-free questions during CPR.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Revive needs speech recognition permission to understand your voice commands and questions during emergencies.</string>
 </dict>
 </plist>

@@ -68,25 +68,38 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
               },
             }),
           )
-          .timeout(const Duration(seconds: 40));
+          .timeout(Duration(seconds: timeoutSeconds));
 
+      print('Ollama Chat Status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final content = data['message']?['content']?.toString().trim();
-        if (content != null && content.isNotEmpty) {
-          return content;
+        String? content = data['message']?['content']?.toString().trim();
+        
+        // If content is empty (common in reasoning models still thinking), fallback to thinking field
+        if (content == null || content.isEmpty) {
+          content = data['message']?['thinking']?.toString().trim();
         }
+        
+        if (content != null && content.isNotEmpty) {
+          // If the model output has thinking tags, strip them to deliver a clean user experience
+          content = content.replaceAll(RegExp(r'<thinking>[\s\S]*?</thinking>'), '').trim();
+          print('Ollama Chat Success Content: $content');
+          return content;
+        } else {
+          print('Ollama Chat Empty Content: ${response.body}');
+        }
+      } else {
+        print('Ollama Chat Error Body: ${response.body}');
       }
       return null;
-    } catch (e) {
+    } catch (e, stack) {
+      print('Ollama Chat Exception: $e\n$stack');
       return null;
     }
   }
 
   /// Generate a calming AI tip for a given CPR step
   Future<String?> generateTip(String stepTitle, String stepDescription) async {
-    if (!_isAvailable) return null;
-
     return _chatRequest(
       systemPrompt: _systemPrompt,
       userMessage: 'Step: "$stepTitle"\nInstruction: "$stepDescription"\n\nProvide one actionable tip.',
@@ -98,8 +111,6 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
 
   /// Get encouragement during active CPR
   Future<String?> getEncouragement() async {
-    if (!_isAvailable) return null;
-
     return _chatRequest(
       systemPrompt: _systemPrompt,
       userMessage: 'The user is doing CPR compressions right now. Give ONE short sentence of encouragement. Be calm and supportive.',
@@ -111,36 +122,30 @@ Rule 5: Use simple language. Avoid medical jargon like "supine" (use "on their b
 
   /// Conversational chat for the Voice Assistant / Ask Gemma feature
   static const String _chatSystemPrompt = '''
-You are Revive AI, a knowledgeable first-aid and CPR assistant.
-Answer the user's medical/first-aid question clearly and concisely in 2-3 sentences max.
-Rule 1: Only answer questions related to first-aid, CPR, AED, choking, or medical emergencies.
-Rule 2: If the question is unrelated to medical emergencies, politely decline and redirect.
-Rule 3: Always remind the user to call emergency services (911) for real emergencies.
-Rule 4: Use simple, easy-to-understand language. Avoid medical terms like "supine" or "occlusion".
+You are a helpful first-aid assistant.
+Rule: Provide the direct final answer immediately.
+Never write down your thinking process, plans, steps, thoughts, or <thinking> tags.
+Answer in under 15 words.
 ''';
 
   Future<String?> chatAnswer(String userQuestion) async {
-    if (!_isAvailable) return null;
-
     return _chatRequest(
       systemPrompt: _chatSystemPrompt,
       userMessage: userQuestion,
-      temperature: 0.5,
-      numPredict: 100,
-      timeoutSeconds: 20,
+      temperature: 0.1,
+      numPredict: 150, // Increased from 35 to allow reasoning models to finish reasoning before outputting!
+      timeoutSeconds: 30,
     );
   }
 
   /// High-speed conversational response for emergency mode
   Future<String?> emergencyChatAnswer(String userQuestion) async {
-    if (!_isAvailable) return null;
-
     return _chatRequest(
-      systemPrompt: "You are an emergency CPR coach. Answer in under 10 words. Be direct.",
+      systemPrompt: "You are an emergency CPR coach. Answer in under 8 words. Be direct. Do not explain.",
       userMessage: userQuestion,
-      temperature: 0.2, 
-      numPredict: 25,  
-      timeoutSeconds: 15,
+      temperature: 0.1, 
+      numPredict: 100, // Increased from 20 to allow reasoning models to finish reasoning before outputting! 
+      timeoutSeconds: 20,
     );
   }
 }
