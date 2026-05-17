@@ -97,8 +97,8 @@ class _LiveCprScreenState extends State<LiveCprScreen>
   }
 
   Future<void> _startSession() async {
-    // Request call permission upfront for emergencies
-    await Permission.phone.request();
+    // Request phone call permission safely in background so it doesn't block the critical CPR timer
+    _requestPhonePermissionSafely();
 
     setState(() {
       _isActive = true;
@@ -111,6 +111,14 @@ class _LiveCprScreenState extends State<LiveCprScreen>
     _motion.reset();
     _motion.startListening();
     _setupBpmSubscription();
+  }
+
+  Future<void> _requestPhonePermissionSafely() async {
+    try {
+      await Permission.phone.request();
+    } catch (e) {
+      // Ignore safely
+    }
   }
 
   Future<void> _handleEmergencyCall() async {
@@ -273,14 +281,20 @@ class _LiveCprScreenState extends State<LiveCprScreen>
                             return SingleChildScrollView(
                               child: Column(
                                 children: [
-                                  SizedBox(
-                                    height: isSmall ? 150 : constraints.maxHeight * 0.45,
-                                    child: FittedBox(
-                                      fit: BoxFit.contain,
-                                      child: CprBodyAnimation(
-                                        feedbackColor: statusColor,
-                                        feedbackText: statusText,
-                                        compressionCount: reading.compressionCount,
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      _motion.simulateCompression();
+                                    },
+                                    child: SizedBox(
+                                      height: isSmall ? 150 : constraints.maxHeight * 0.45,
+                                      child: FittedBox(
+                                        fit: BoxFit.contain,
+                                        child: CprBodyAnimation(
+                                          feedbackColor: statusColor,
+                                          feedbackText: statusText,
+                                          compressionCount: reading.compressionCount,
+                                        ),
                                       ),
                                     ),
                                   ),
